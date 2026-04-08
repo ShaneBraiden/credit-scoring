@@ -3,61 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Credit Risk Assessment</title>
+    <title>Indian Credit Risk Assessment | கடன் ஒப்புதல்</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #4361ee;
+            --primary-color: #ff6b35;
+            --primary-dark: #e55a2b;
             --success-color: #10b981;
             --danger-color: #ef4444;
             --warning-color: #f59e0b;
+            --indian-saffron: #ff9933;
+            --indian-green: #138808;
+            --indian-blue: #000080;
         }
         body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
+            font-family: 'Segoe UI', system-ui, sans-serif;
         }
         .main-card {
             background: white;
             border: none;
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .header-gradient {
+            background: linear-gradient(135deg, var(--indian-saffron) 0%, var(--primary-color) 50%, var(--indian-green) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         .form-label {
             font-weight: 600;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             color: #374151;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.25rem;
         }
-        .form-control {
+        .form-control, .form-select {
             border-radius: 8px;
             border: 2px solid #e5e7eb;
-            padding: 0.6rem 0.8rem;
+            padding: 0.55rem 0.75rem;
+            font-size: 0.9rem;
             transition: all 0.2s;
         }
-        .form-control:focus {
+        .form-control:focus, .form-select:focus {
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.15);
         }
         .btn-primary {
-            background: linear-gradient(135deg, #4361ee 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             border: none;
             border-radius: 10px;
-            padding: 0.8rem 2rem;
+            padding: 0.9rem 2rem;
             font-weight: 600;
+            font-size: 1rem;
             transition: all 0.3s;
         }
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(67, 97, 238, 0.4);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #d14a1f 100%);
+        }
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #6b7280;
+            font-weight: 700;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 2px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+        }
+        .section-title i {
+            color: var(--primary-color);
+            margin-right: 6px;
+        }
+        .form-text {
+            font-size: 0.7rem;
+            color: #9ca3af;
+        }
+        .input-group-text {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-right: none;
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .input-group .form-control {
+            border-left: none;
+        }
+        .input-group:focus-within .input-group-text {
+            border-color: var(--primary-color);
         }
         #result-container {
             display: none;
-            border-radius: 12px;
-            animation: fadeIn 0.4s ease;
+            border-radius: 16px;
+            animation: slideIn 0.5s ease;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
         .result-approved {
@@ -68,53 +115,87 @@
             background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
             border: 2px solid var(--danger-color);
         }
-        .risk-bar {
-            height: 12px;
-            border-radius: 6px;
-            background-color: #e5e7eb;
+        .approval-bar {
+            height: 14px;
+            border-radius: 7px;
+            background: linear-gradient(90deg, #e5e7eb 0%, #f3f4f6 100%);
             overflow: hidden;
         }
-        .risk-bar-fill {
+        .approval-bar-fill {
             height: 100%;
-            border-radius: 6px;
-            transition: width 0.8s ease;
-        }
-        .section-title {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #6b7280;
-            font-weight: 700;
-            margin-bottom: 0.75rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 2px solid #f3f4f6;
-        }
-        .form-text {
-            font-size: 0.75rem;
-            color: #9ca3af;
+            border-radius: 7px;
+            transition: width 1s ease;
         }
         .model-badge {
-            background: linear-gradient(135deg, #4361ee 0%, #7c3aed 100%);
+            background: linear-gradient(135deg, var(--indian-blue) 0%, #1e3a5f 100%);
             color: white;
             padding: 0.3rem 0.8rem;
             border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .cibil-badge {
+            padding: 0.3rem 0.7rem;
+            border-radius: 8px;
             font-size: 0.75rem;
             font-weight: 600;
         }
+        .cibil-excellent { background: #d1fae5; color: #065f46; }
+        .cibil-good { background: #dbeafe; color: #1e40af; }
+        .cibil-fair { background: #fef3c7; color: #92400e; }
+        .cibil-poor { background: #fee2e2; color: #991b1b; }
+        .risk-badge {
+            padding: 0.35rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .risk-low { background: #d1fae5; color: #065f46; }
+        .risk-medium { background: #fef3c7; color: #92400e; }
+        .risk-high { background: #fee2e2; color: #991b1b; }
         .confidence-badge {
-            padding: 0.25rem 0.6rem;
-            border-radius: 12px;
-            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.65rem;
             font-weight: 600;
             text-transform: uppercase;
         }
         .confidence-high { background: #d1fae5; color: #065f46; }
         .confidence-medium { background: #fef3c7; color: #92400e; }
         .confidence-low { background: #fee2e2; color: #991b1b; }
+        .emi-highlight {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+        }
         .tooltip-icon {
             color: #9ca3af;
             cursor: help;
-            margin-left: 4px;
+            margin-left: 3px;
+            font-size: 0.8rem;
+        }
+        .nav-pills .nav-link {
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+        }
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+        }
+        .tab-content {
+            padding-top: 1rem;
+        }
+        .rupee-symbol {
+            font-family: 'Arial', sans-serif;
+        }
+        @media (max-width: 768px) {
+            .main-card { padding: 1rem !important; }
+            .section-title { font-size: 0.7rem; }
+            .form-label { font-size: 0.78rem; }
         }
     </style>
 </head>
@@ -127,144 +208,371 @@
             <!-- Header -->
             <div class="text-center mb-4 text-white">
                 <h1 class="fw-bold mb-2">
-                    <i class="bi bi-shield-check me-2"></i>Credit Risk Assessment
+                    <i class="bi bi-bank2 me-2"></i>
+                    <span class="header-gradient">Credit Risk Assessment</span>
                 </h1>
-                <p class="opacity-75 mb-0">AI-powered credit risk evaluation using machine learning</p>
-                <div id="model-info" class="mt-2"></div>
+                <p class="opacity-75 mb-1">AI-powered loan approval prediction for Indian borrowers</p>
+                <p class="opacity-50 mb-2" style="font-size: 0.85rem;">கடன் ஒப்புதல் முன்னறிவிப்பு அமைப்பு</p>
+                <div id="model-info"></div>
             </div>
 
             <!-- Form Card -->
             <div class="main-card p-4 mb-4">
-                <form id="credit-form">
+                <form id="loan-form">
                     
-                    <!-- Credit Utilization Section -->
-                    <div class="mb-4">
-                        <div class="section-title">
-                            <i class="bi bi-credit-card me-1"></i>Credit Utilization
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="RevolvingUtilizationOfUnsecuredLines" class="form-label">
-                                    Credit Utilization Ratio
-                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
-                                       title="Total balance on credit cards / credit limits (0.0 - 1.0+)"></i>
-                                </label>
-                                <input type="number" step="0.01" class="form-control" 
-                                       id="RevolvingUtilizationOfUnsecuredLines" 
-                                       name="RevolvingUtilizationOfUnsecuredLines" 
-                                       min="0" max="10" value="0.3" required>
-                                <div class="form-text">e.g., 0.3 = using 30% of available credit</div>
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-pills nav-fill mb-3" id="formTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="personal-tab" data-bs-toggle="pill" data-bs-target="#personal" type="button" role="tab">
+                                <i class="bi bi-person-fill me-1"></i>Personal Info
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="credit-tab" data-bs-toggle="pill" data-bs-target="#credit" type="button" role="tab">
+                                <i class="bi bi-credit-card-fill me-1"></i>Credit History
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="banking-tab" data-bs-toggle="pill" data-bs-target="#banking" type="button" role="tab">
+                                <i class="bi bi-bank me-1"></i>Banking
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="loan-tab" data-bs-toggle="pill" data-bs-target="#loan" type="button" role="tab">
+                                <i class="bi bi-cash-stack me-1"></i>Loan Details
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="formTabContent">
+                        
+                        <!-- Tab 1: Personal & Financial Info -->
+                        <div class="tab-pane fade show active" id="personal" role="tabpanel">
+                            <div class="section-title">
+                                <i class="bi bi-person-vcard"></i>Personal & Financial Information
                             </div>
-                            <div class="col-md-6">
-                                <label for="DebtRatio" class="form-label">
-                                    Debt Ratio
-                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
-                                       title="Monthly debt payments / Monthly gross income"></i>
-                                </label>
-                                <input type="number" step="0.01" class="form-control" 
-                                       id="DebtRatio" name="DebtRatio" 
-                                       min="0" max="10" value="0.4" required>
-                                <div class="form-text">e.g., 0.4 = 40% of income goes to debt</div>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="age" class="form-label">
+                                        Age (வயது) <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="number" class="form-control" id="age" name="age" 
+                                           min="21" max="65" value="30" required>
+                                    <div class="form-text">21-65 years</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="annual_income" class="form-label">
+                                        Annual Income (ஆண்டு வருமானம்) <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text rupee-symbol">₹</span>
+                                        <input type="number" class="form-control" id="annual_income" name="annual_income" 
+                                               min="100000" max="10000000" value="600000" required>
+                                    </div>
+                                    <div class="form-text">₹1 Lakh - ₹1 Crore</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="employment_years" class="form-label">
+                                        Employment Years (பணி ஆண்டுகள்)
+                                    </label>
+                                    <select class="form-select" id="employment_years" name="employment_years">
+                                        <option value="0">&lt; 1 year</option>
+                                        <option value="1">1 year</option>
+                                        <option value="2" selected>2 years</option>
+                                        <option value="3">3 years</option>
+                                        <option value="5">5 years</option>
+                                        <option value="7">7 years</option>
+                                        <option value="10">10+ years</option>
+                                        <option value="15">15+ years</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="education" class="form-label">
+                                        Education (கல்வி)
+                                    </label>
+                                    <select class="form-select" id="education" name="education">
+                                        <option value="Below 10th">Below 10th</option>
+                                        <option value="10th Pass">10th Pass</option>
+                                        <option value="12th Pass">12th Pass</option>
+                                        <option value="Graduate" selected>Graduate</option>
+                                        <option value="Post Graduate">Post Graduate</option>
+                                        <option value="Professional Degree">Professional Degree</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="employment_type" class="form-label">
+                                        Employment Type (வேலை வகை)
+                                    </label>
+                                    <select class="form-select" id="employment_type" name="employment_type">
+                                        <option value="Salaried" selected>Salaried</option>
+                                        <option value="Self-Employed">Self-Employed</option>
+                                        <option value="Business Owner">Business Owner</option>
+                                        <option value="Freelancer">Freelancer</option>
+                                        <option value="Government Employee">Government Employee</option>
+                                        <option value="Retired">Retired</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="dependents" class="form-label">
+                                        Dependents (சார்ந்தவர்கள்)
+                                    </label>
+                                    <select class="form-select" id="dependents" name="dependents">
+                                        <option value="0">0</option>
+                                        <option value="1">1</option>
+                                        <option value="2" selected>2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5+</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="state" class="form-label">
+                                        State (மாநிலம்)
+                                    </label>
+                                    <select class="form-select" id="state" name="state">
+                                        <option value="Andhra Pradesh">Andhra Pradesh</option>
+                                        <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                                        <option value="Assam">Assam</option>
+                                        <option value="Bihar">Bihar</option>
+                                        <option value="Chhattisgarh">Chhattisgarh</option>
+                                        <option value="Delhi" selected>Delhi</option>
+                                        <option value="Goa">Goa</option>
+                                        <option value="Gujarat">Gujarat</option>
+                                        <option value="Haryana">Haryana</option>
+                                        <option value="Himachal Pradesh">Himachal Pradesh</option>
+                                        <option value="Jharkhand">Jharkhand</option>
+                                        <option value="Karnataka">Karnataka</option>
+                                        <option value="Kerala">Kerala</option>
+                                        <option value="Madhya Pradesh">Madhya Pradesh</option>
+                                        <option value="Maharashtra">Maharashtra</option>
+                                        <option value="Manipur">Manipur</option>
+                                        <option value="Meghalaya">Meghalaya</option>
+                                        <option value="Mizoram">Mizoram</option>
+                                        <option value="Nagaland">Nagaland</option>
+                                        <option value="Odisha">Odisha</option>
+                                        <option value="Punjab">Punjab</option>
+                                        <option value="Rajasthan">Rajasthan</option>
+                                        <option value="Sikkim">Sikkim</option>
+                                        <option value="Tamil Nadu">Tamil Nadu</option>
+                                        <option value="Telangana">Telangana</option>
+                                        <option value="Tripura">Tripura</option>
+                                        <option value="Uttar Pradesh">Uttar Pradesh</option>
+                                        <option value="Uttarakhand">Uttarakhand</option>
+                                        <option value="West Bengal">West Bengal</option>
+                                        <option value="Chandigarh">Chandigarh</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- Tab 2: Credit History -->
+                        <div class="tab-pane fade" id="credit" role="tabpanel">
+                            <div class="section-title">
+                                <i class="bi bi-file-earmark-text"></i>Credit History (கடன் வரலாறு)
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="cibil_score" class="form-label">
+                                        CIBIL Score (சிபில் மதிப்பெண்) <span class="text-danger">*</span>
+                                        <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
+                                           title="Your credit score from TransUnion CIBIL (300-900)"></i>
+                                    </label>
+                                    <input type="number" class="form-control" id="cibil_score" name="cibil_score" 
+                                           min="300" max="900" value="720" required>
+                                    <div class="form-text">300 (Poor) - 900 (Excellent) | 750+ recommended</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="existing_debt" class="form-label">
+                                        Existing Debt (தற்போதைய கடன்)
+                                        <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
+                                           title="Total outstanding loans, EMIs, credit card dues"></i>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text rupee-symbol">₹</span>
+                                        <input type="number" class="form-control" id="existing_debt" name="existing_debt" 
+                                               min="0" max="50000000" value="100000">
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="num_past_loans" class="form-label">
+                                        Past Loans (முந்தைய கடன்கள்)
+                                    </label>
+                                    <select class="form-select" id="num_past_loans" name="num_past_loans">
+                                        <option value="0">0 - First time borrower</option>
+                                        <option value="1" selected>1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5+</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="loans_repaid" class="form-label">
+                                        Loans Repaid Successfully
+                                    </label>
+                                    <select class="form-select" id="loans_repaid" name="loans_repaid">
+                                        <option value="0">0</option>
+                                        <option value="1" selected>1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5+</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="missed_payments" class="form-label">
+                                        Missed Payments (Last 12 mo)
+                                        <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
+                                           title="EMI defaults or late payments in last 12 months"></i>
+                                    </label>
+                                    <select class="form-select" id="missed_payments" name="missed_payments">
+                                        <option value="0" selected>0 - No missed payments</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3+</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="credit_utilization" class="form-label">
+                                        Credit Card Utilization (%)
+                                        <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
+                                           title="Percentage of credit limit being used"></i>
+                                    </label>
+                                    <input type="number" class="form-control" id="credit_utilization" name="credit_utilization" 
+                                           min="0" max="100" value="30">
+                                    <div class="form-text">Ideal: Below 30%</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="credit_inquiries" class="form-label">
+                                        Credit Inquiries (Last 6 mo)
+                                    </label>
+                                    <select class="form-select" id="credit_inquiries" name="credit_inquiries">
+                                        <option value="0">0</option>
+                                        <option value="1" selected>1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4+</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Banking Behavior -->
+                        <div class="tab-pane fade" id="banking" role="tabpanel">
+                            <div class="section-title">
+                                <i class="bi bi-piggy-bank"></i>Banking Behavior (வங்கி நடத்தை)
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="avg_bank_balance" class="form-label">
+                                        Average Monthly Balance
+                                        <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
+                                           title="Average balance maintained in your savings/current account"></i>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text rupee-symbol">₹</span>
+                                        <input type="number" class="form-control" id="avg_bank_balance" name="avg_bank_balance" 
+                                               min="0" max="10000000" value="50000">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="monthly_transactions" class="form-label">
+                                        Monthly Transactions
+                                    </label>
+                                    <input type="number" class="form-control" id="monthly_transactions" name="monthly_transactions" 
+                                           min="1" max="500" value="25">
+                                    <div class="form-text">UPI, NEFT, card transactions per month</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="spending_ratio" class="form-label">
+                                        Monthly Spending (% of Income)
+                                    </label>
+                                    <input type="number" class="form-control" id="spending_ratio" name="spending_ratio" 
+                                           min="10" max="100" value="60" step="5">
+                                    <div class="form-text">Ideal: 50-70%</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="has_savings" class="form-label">
+                                        Has Savings Account
+                                    </label>
+                                    <select class="form-select" id="has_savings" name="has_savings">
+                                        <option value="1" selected>Yes</option>
+                                        <option value="0">No</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="account_age" class="form-label">
+                                        Account Age (Years)
+                                    </label>
+                                    <select class="form-select" id="account_age" name="account_age">
+                                        <option value="1">1 year</option>
+                                        <option value="2">2 years</option>
+                                        <option value="3" selected>3 years</option>
+                                        <option value="5">5 years</option>
+                                        <option value="10">10+ years</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 4: Loan Details -->
+                        <div class="tab-pane fade" id="loan" role="tabpanel">
+                            <div class="section-title">
+                                <i class="bi bi-wallet2"></i>Loan Details (கடன் விவரங்கள்)
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="loan_amount" class="form-label">
+                                        Loan Amount Required <span class="text-danger">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text rupee-symbol">₹</span>
+                                        <input type="number" class="form-control" id="loan_amount" name="loan_amount" 
+                                               min="10000" max="10000000" value="500000" required>
+                                    </div>
+                                    <div class="form-text">₹10,000 - ₹1 Crore</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="loan_tenure" class="form-label">
+                                        Loan Tenure (Months)
+                                    </label>
+                                    <select class="form-select" id="loan_tenure" name="loan_tenure">
+                                        <option value="12">12 months (1 year)</option>
+                                        <option value="24">24 months (2 years)</option>
+                                        <option value="36">36 months (3 years)</option>
+                                        <option value="48">48 months (4 years)</option>
+                                        <option value="60" selected>60 months (5 years)</option>
+                                        <option value="84">84 months (7 years)</option>
+                                        <option value="120">120 months (10 years)</option>
+                                        <option value="180">180 months (15 years)</option>
+                                        <option value="240">240 months (20 years)</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label for="loan_purpose" class="form-label">
+                                        Loan Purpose (கடன் நோக்கம்)
+                                    </label>
+                                    <select class="form-select" id="loan_purpose" name="loan_purpose">
+                                        <option value="Personal Loan" selected>Personal Loan</option>
+                                        <option value="Home Loan">Home Loan</option>
+                                        <option value="Vehicle Loan">Vehicle Loan</option>
+                                        <option value="Education Loan">Education Loan</option>
+                                        <option value="Business Loan">Business Loan</option>
+                                        <option value="Medical Emergency">Medical Emergency</option>
+                                        <option value="Wedding">Wedding</option>
+                                        <option value="Debt Consolidation">Debt Consolidation</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <!-- Personal Info Section -->
-                    <div class="mb-4">
-                        <div class="section-title">
-                            <i class="bi bi-person me-1"></i>Personal Information
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="age" class="form-label">Age</label>
-                                <input type="number" class="form-control" id="age" name="age" 
-                                       min="18" max="100" value="35" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="MonthlyIncome" class="form-label">Monthly Income ($)</label>
-                                <input type="number" class="form-control" id="MonthlyIncome" 
-                                       name="MonthlyIncome" min="0" value="5000" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="NumberOfDependents" class="form-label">Dependents</label>
-                                <input type="number" class="form-control" id="NumberOfDependents" 
-                                       name="NumberOfDependents" min="0" max="20" value="0" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payment History Section -->
-                    <div class="mb-4">
-                        <div class="section-title">
-                            <i class="bi bi-clock-history me-1"></i>Payment History
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label for="NumberOfTime30-59DaysPastDueNotWorse" class="form-label">
-                                    30-59 Days Late
-                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
-                                       title="Number of times 30-59 days past due"></i>
-                                </label>
-                                <input type="number" class="form-control" 
-                                       id="NumberOfTime30-59DaysPastDueNotWorse" 
-                                       name="NumberOfTime30-59DaysPastDueNotWorse" 
-                                       min="0" max="20" value="0" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="NumberOfTime60-89DaysPastDueNotWorse" class="form-label">
-                                    60-89 Days Late
-                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
-                                       title="Number of times 60-89 days past due"></i>
-                                </label>
-                                <input type="number" class="form-control" 
-                                       id="NumberOfTime60-89DaysPastDueNotWorse" 
-                                       name="NumberOfTime60-89DaysPastDueNotWorse" 
-                                       min="0" max="20" value="0" required>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="NumberOfTimes90DaysLate" class="form-label">
-                                    90+ Days Late
-                                    <i class="bi bi-info-circle tooltip-icon" data-bs-toggle="tooltip" 
-                                       title="Number of times 90+ days past due (serious)"></i>
-                                </label>
-                                <input type="number" class="form-control" 
-                                       id="NumberOfTimes90DaysLate" 
-                                       name="NumberOfTimes90DaysLate" 
-                                       min="0" max="20" value="0" required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Credit Accounts Section -->
-                    <div class="mb-4">
-                        <div class="section-title">
-                            <i class="bi bi-bank me-1"></i>Credit Accounts
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="NumberOfOpenCreditLinesAndLoans" class="form-label">
-                                    Open Credit Lines & Loans
-                                </label>
-                                <input type="number" class="form-control" 
-                                       id="NumberOfOpenCreditLinesAndLoans" 
-                                       name="NumberOfOpenCreditLinesAndLoans" 
-                                       min="0" max="50" value="5" required>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="NumberRealEstateLoansOrLines" class="form-label">
-                                    Real Estate Loans/Lines
-                                </label>
-                                <input type="number" class="form-control" 
-                                       id="NumberRealEstateLoansOrLines" 
-                                       name="NumberRealEstateLoansOrLines" 
-                                       min="0" max="20" value="1" required>
-                            </div>
-                        </div>
-                    </div>
+                    <hr class="my-4">
 
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg" id="submit-btn">
-                            <i class="bi bi-lightning-charge me-2"></i>Assess Credit Risk
+                            <i class="bi bi-lightning-charge-fill me-2"></i>Check Loan Eligibility
                         </button>
                     </div>
 
@@ -273,48 +581,70 @@
 
             <!-- Loading Spinner -->
             <div id="loading" class="text-center text-white mb-4" style="display: none;">
-                <div class="spinner-border" role="status" style="width: 3rem; height: 3rem;">
+                <div class="spinner-border text-warning" role="status" style="width: 3.5rem; height: 3.5rem;">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <p class="mt-3 fw-semibold">Analyzing credit profile...</p>
+                <p class="mt-3 fw-semibold">Analyzing your credit profile...</p>
+                <p class="opacity-75" style="font-size: 0.85rem;">உங்கள் கிரெடிட் சுயவிவரம் பகுப்பாய்வு செய்யப்படுகிறது</p>
             </div>
 
             <!-- Result Card -->
             <div id="result-container" class="main-card p-4 mb-4">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div>
-                        <h4 class="fw-bold mb-1" id="result-title"></h4>
-                        <span class="model-badge" id="result-model"></span>
-                        <span class="confidence-badge ms-2" id="result-confidence"></span>
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-center mb-2">
+                            <h4 class="fw-bold mb-0 me-3" id="result-title"></h4>
+                            <span class="model-badge" id="result-model"></span>
+                            <span class="confidence-badge ms-2" id="result-confidence"></span>
+                        </div>
+                        <p class="text-muted mb-3" id="result-message"></p>
+                        
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted fw-semibold">Approval Probability</span>
+                                <span class="fw-bold" id="approval-percentage"></span>
+                            </div>
+                            <div class="approval-bar">
+                                <div class="approval-bar-fill" id="approval-bar-fill"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <div>
+                                <span class="text-muted me-1">CIBIL:</span>
+                                <span class="cibil-badge" id="cibil-badge"></span>
+                            </div>
+                            <div>
+                                <span class="text-muted me-1">Risk:</span>
+                                <span class="risk-badge" id="risk-badge"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="text-end">
-                        <div class="display-5 fw-bold" id="risk-percentage-large"></div>
-                        <small class="text-muted">Risk Score</small>
+                    <div class="col-md-4">
+                        <div class="emi-highlight">
+                            <div class="text-muted mb-1" style="font-size: 0.8rem;">Estimated Monthly EMI</div>
+                            <div class="display-6 fw-bold text-dark" id="emi-estimate"></div>
+                            <div class="text-muted" style="font-size: 0.75rem;">@ ~12% p.a. interest</div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <div class="display-5 fw-bold" id="approval-percentage-large"></div>
+                            <small class="text-muted">Approval Chance</small>
+                        </div>
                     </div>
                 </div>
-                
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-muted">Default Probability</span>
-                        <span class="fw-bold" id="risk-percentage"></span>
-                    </div>
-                    <div class="risk-bar">
-                        <div class="risk-bar-fill" id="risk-bar-fill"></div>
-                    </div>
-                </div>
-                
-                <p class="mb-0 text-muted" id="result-message"></p>
             </div>
 
             <!-- Error Alert -->
             <div id="error-container" class="alert alert-danger main-card" style="display: none;" role="alert">
-                <i class="bi bi-exclamation-triangle me-2"></i>
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 <span id="error-message"></span>
             </div>
 
             <!-- Footer -->
             <div class="text-center text-white opacity-50">
-                <small>Dataset: Give Me Some Credit (Kaggle) • 150K+ training records</small>
+                <small>Indian Credit Risk Assessment | 50K+ synthetic training records | ML-powered</small>
+                <br>
+                <small>இது கல்வி நோக்கங்களுக்காக மட்டும்</small>
             </div>
 
         </div>
@@ -328,6 +658,11 @@
         new bootstrap.Tooltip(el);
     });
 
+    // Format number as Indian currency
+    function formatINR(num) {
+        return '₹' + num.toLocaleString('en-IN');
+    }
+
     // Fetch model info on load
     async function loadModelInfo() {
         try {
@@ -335,8 +670,8 @@
             if (response.ok) {
                 const info = await response.json();
                 const badge = info.demo_mode 
-                    ? `<span class="badge bg-warning text-dark">Demo Mode</span>` 
-                    : `<span class="badge bg-light text-dark">${info.model_name} • AUC: ${info.roc_auc}</span>`;
+                    ? '<span class="badge bg-warning text-dark">Demo Mode</span>' 
+                    : '<span class="badge bg-light text-dark">' + info.model_name + ' | Accuracy: ' + (info.accuracy * 100).toFixed(1) + '%</span>';
                 document.getElementById("model-info").innerHTML = badge;
             }
         } catch (e) {
@@ -345,7 +680,7 @@
     }
     loadModelInfo();
 
-    const form = document.getElementById("credit-form");
+    const form = document.getElementById("loan-form");
     const submitBtn = document.getElementById("submit-btn");
     const loading = document.getElementById("loading");
     const resultContainer = document.getElementById("result-container");
@@ -364,16 +699,35 @@
 
         // Gather form data
         const payload = {
-            RevolvingUtilizationOfUnsecuredLines: parseFloat(document.getElementById("RevolvingUtilizationOfUnsecuredLines").value),
-            age: parseFloat(document.getElementById("age").value),
-            "NumberOfTime30-59DaysPastDueNotWorse": parseFloat(document.getElementById("NumberOfTime30-59DaysPastDueNotWorse").value),
-            DebtRatio: parseFloat(document.getElementById("DebtRatio").value),
-            MonthlyIncome: parseFloat(document.getElementById("MonthlyIncome").value),
-            NumberOfOpenCreditLinesAndLoans: parseFloat(document.getElementById("NumberOfOpenCreditLinesAndLoans").value),
-            NumberOfTimes90DaysLate: parseFloat(document.getElementById("NumberOfTimes90DaysLate").value),
-            NumberRealEstateLoansOrLines: parseFloat(document.getElementById("NumberRealEstateLoansOrLines").value),
-            "NumberOfTime60-89DaysPastDueNotWorse": parseFloat(document.getElementById("NumberOfTime60-89DaysPastDueNotWorse").value),
-            NumberOfDependents: parseFloat(document.getElementById("NumberOfDependents").value),
+            // Personal info
+            age: parseInt(document.getElementById("age").value),
+            annual_income: parseFloat(document.getElementById("annual_income").value),
+            employment_years: parseInt(document.getElementById("employment_years").value),
+            education: document.getElementById("education").value,
+            employment_type: document.getElementById("employment_type").value,
+            state: document.getElementById("state").value,
+            dependents: parseInt(document.getElementById("dependents").value),
+            
+            // Credit history
+            cibil_score: parseInt(document.getElementById("cibil_score").value),
+            existing_debt: parseFloat(document.getElementById("existing_debt").value),
+            num_past_loans: parseInt(document.getElementById("num_past_loans").value),
+            loans_repaid: parseInt(document.getElementById("loans_repaid").value),
+            missed_payments: parseInt(document.getElementById("missed_payments").value),
+            credit_utilization: parseFloat(document.getElementById("credit_utilization").value),
+            credit_inquiries: parseInt(document.getElementById("credit_inquiries").value),
+            
+            // Banking
+            avg_bank_balance: parseFloat(document.getElementById("avg_bank_balance").value),
+            monthly_transactions: parseInt(document.getElementById("monthly_transactions").value),
+            spending_ratio: parseFloat(document.getElementById("spending_ratio").value) / 100,
+            has_savings: parseInt(document.getElementById("has_savings").value),
+            account_age: parseInt(document.getElementById("account_age").value),
+            
+            // Loan details
+            loan_amount: parseFloat(document.getElementById("loan_amount").value),
+            loan_tenure: parseInt(document.getElementById("loan_tenure").value),
+            loan_purpose: document.getElementById("loan_purpose").value,
         };
 
         try {
@@ -400,40 +754,59 @@
     });
 
     function displayResult(data) {
-        const isHighRisk = data.risk_level === "High Risk";
+        const isApproved = data.decision === "Approved";
 
         // Set title with icon
         document.getElementById("result-title").innerHTML =
-            data.decision === "Approved"
-                ? '<i class="bi bi-check-circle-fill text-success me-2"></i>Application Approved'
-                : '<i class="bi bi-x-circle-fill text-danger me-2"></i>Application Rejected';
+            isApproved
+                ? '<i class="bi bi-check-circle-fill text-success me-2"></i>Loan Likely Approved'
+                : '<i class="bi bi-x-circle-fill text-danger me-2"></i>Loan Likely Rejected';
 
         // Set model badge
         document.getElementById("result-model").textContent = data.model_name || "ML Model";
         
         // Set confidence badge
         const confBadge = document.getElementById("result-confidence");
-        confBadge.textContent = `${data.confidence || 'medium'} confidence`;
-        confBadge.className = `confidence-badge confidence-${data.confidence || 'medium'}`;
+        confBadge.textContent = (data.confidence || 'medium') + ' confidence';
+        confBadge.className = 'confidence-badge confidence-' + (data.confidence || 'medium');
 
-        // Set risk percentage
-        document.getElementById("risk-percentage").textContent = data.risk_percentage + "%";
-        document.getElementById("risk-percentage-large").textContent = data.risk_percentage + "%";
-        document.getElementById("risk-percentage-large").style.color = isHighRisk ? "#ef4444" : "#10b981";
+        // Set approval percentage
+        document.getElementById("approval-percentage").textContent = data.approval_probability + "%";
+        document.getElementById("approval-percentage-large").textContent = data.approval_probability + "%";
+        document.getElementById("approval-percentage-large").style.color = isApproved ? "#10b981" : "#ef4444";
 
-        // Set risk bar
-        const barFill = document.getElementById("risk-bar-fill");
-        barFill.style.width = data.risk_percentage + "%";
-        barFill.style.backgroundColor = isHighRisk ? "#ef4444" : "#10b981";
+        // Set approval bar
+        const barFill = document.getElementById("approval-bar-fill");
+        barFill.style.width = data.approval_probability + "%";
+        barFill.style.backgroundColor = isApproved ? "#10b981" : "#ef4444";
+
+        // Set CIBIL badge
+        const cibilBadge = document.getElementById("cibil-badge");
+        cibilBadge.textContent = data.cibil_category;
+        cibilBadge.className = "cibil-badge cibil-" + data.cibil_category.toLowerCase();
+
+        // Set risk badge
+        const riskBadge = document.getElementById("risk-badge");
+        riskBadge.textContent = data.risk_level;
+        if (data.risk_level === "Low Risk") {
+            riskBadge.className = "risk-badge risk-low";
+        } else if (data.risk_level === "Medium Risk") {
+            riskBadge.className = "risk-badge risk-medium";
+        } else {
+            riskBadge.className = "risk-badge risk-high";
+        }
+
+        // Set EMI estimate
+        document.getElementById("emi-estimate").textContent = formatINR(data.monthly_emi_estimate);
 
         // Set message
         document.getElementById("result-message").textContent =
-            isHighRisk
-                ? "This applicant shows elevated risk of default based on credit history patterns. Additional review recommended."
-                : "This applicant demonstrates a favorable credit profile with low default risk indicators.";
+            isApproved
+                ? "Based on your profile, this loan application has a good chance of approval. Your credit indicators are positive."
+                : "This application may face challenges. Consider improving your CIBIL score, reducing existing debt, or applying for a smaller loan amount.";
 
         // Apply styling
-        resultContainer.className = "main-card p-4 mb-4 " + (isHighRisk ? "result-rejected" : "result-approved");
+        resultContainer.className = "main-card p-4 mb-4 " + (isApproved ? "result-approved" : "result-rejected");
         resultContainer.style.display = "block";
         
         // Scroll to result

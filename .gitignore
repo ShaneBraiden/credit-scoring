@@ -1,9 +1,6 @@
-# Dataset files (large CSV files - download from Kaggle)
-dataset/*.csv
-dataset/*.zip
-dataset/*.gz
-dataset/*.xls
-dataset/*.xlsx
+# Dataset files (large local data artifacts)
+dataset/*
+!dataset/README.md
 
 # Trained models and artifacts
 *.pkl
@@ -73,6 +70,12 @@ dist/
 *.temp
 *.bak
 *.swp
+*.cache
+
+# Local tooling metadata
+.python-version
+.mypy_cache/
+.nox/
 
 # OS files
 Thumbs.db

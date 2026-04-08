@@ -1,16 +1,18 @@
 """
-Credit Risk Assessment - Model Training Script
+Indian Credit Risk Assessment - Model Training Script
 
-Trains multiple ML models on the Give Me Some Credit dataset:
+Trains multiple ML models on the Indian Credit Risk dataset:
 - Logistic Regression (baseline)
 - Random Forest
 - XGBoost (best performer)
 
-Handles missing values, engineers features, addresses class imbalance,
-and saves the best model for the Flask backend.
+Predicts whether a loan application will be APPROVED or REJECTED.
 
-Dataset: Give Me Some Credit (Kaggle)
-https://www.kaggle.com/competitions/GiveMeSomeCredit
+Features include:
+- Personal & Financial info (age, income, education, employment)
+- Credit History (CIBIL score, past loans, missed payments)
+- Banking Behavior (account balance, transactions, spending)
+- Loan Details (amount, purpose, tenure)
 """
 
 import os
@@ -21,33 +23,20 @@ import pandas as pd
 import joblib
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score, StratifiedKFold
+from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    roc_auc_score, classification_report, confusion_matrix
+)
 
 warnings.filterwarnings("ignore")
 
-# Add parent directory to path for utils import
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-from utils.preprocessing import (
-    load_and_preprocess_data,
-    handle_missing_values,
-    engineer_features,
-    prepare_features_and_target,
-)
-from utils.evaluation import (
-    evaluate_model,
-    plot_roc_curve,
-    plot_confusion_matrix,
-    plot_feature_importance,
-    compare_models,
-)
-
 # ─── Configuration ────────────────────────────────────────────────────────────
-DATA_PATH = os.path.join(os.path.dirname(__file__), "dataset", "cs-training.csv")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "dataset", "indian_credit_data.csv")
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "credit_model.pkl")
 RANDOM_STATE = 42
 
-# Set random seed for reproducibility
 np.random.seed(RANDOM_STATE)
 
 
@@ -60,25 +49,142 @@ def check_xgboost_available():
         return False
 
 
+def load_and_prepare_data(filepath):
+    """Load and prepare the Indian Credit Risk dataset."""
+    
+    print(f"Loading data from {filepath}...")
+    df = pd.read_csv(filepath)
+    
+    print(f"Dataset shape: {df.shape}")
+    print(f"\nTarget distribution:")
+    print(df['loan_approved'].value_counts())
+    print(f"  Approved (1): {(df['loan_approved']==1).sum():,}")
+    print(f"  Rejected (0): {(df['loan_approved']==0).sum():,}")
+    
+    # Encode categorical columns
+    label_encoders = {}
+    categorical_cols = ['education', 'employment_type', 'state', 'loan_purpose']
+    
+    for col in categorical_cols:
+        if col in df.columns:
+            le = LabelEncoder()
+            df[f'{col}_encoded'] = le.fit_transform(df[col].fillna('Unknown'))
+            label_encoders[col] = le
+            df = df.drop(columns=[col])
+    
+    # Ensure no missing values
+    for col in df.columns:
+        if df[col].isna().sum() > 0:
+            if df[col].dtype in ['float64', 'int64']:
+                df[col] = df[col].fillna(df[col].median())
+            else:
+                df[col] = df[col].fillna(0)
+    
+    return df, label_encoders
+
+
+def engineer_features(df):
+    """Create additional features for the model."""
+    
+    df = df.copy()
+    
+    # 1. Income to loan ratio
+    df['income_to_loan_ratio'] = df['annual_income'] / (df['loan_amount'] + 1)
+    df['income_to_loan_ratio'] = df['income_to_loan_ratio'].clip(0, 100)
+    
+    # 2. CIBIL score buckets
+    df['cibil_bucket'] = pd.cut(
+        df['cibil_score'],
+        bins=[0, 550, 650, 750, 900],
+        labels=[0, 1, 2, 3]
+    ).cat.codes.replace(-1, 1)
+    
+    # 3. Good CIBIL flag
+    df['good_cibil'] = (df['cibil_score'] >= 700).astype(int)
+    
+    # 4. Debt to income ratio
+    df['debt_to_income'] = df['existing_debt'] / (df['annual_income'] + 1)
+    df['debt_to_income'] = df['debt_to_income'].clip(0, 10)
+    
+    # 5. High debt flag
+    df['high_debt'] = (df['debt_to_income'] > 0.5).astype(int)
+    
+    # 6. EMI affordability (estimated monthly payment / monthly income)
+    estimated_emi = df['loan_amount'] / df['loan_tenure']
+    df['emi_to_income'] = estimated_emi / (df['monthly_income'] + 1)
+    df['emi_to_income'] = df['emi_to_income'].clip(0, 1)
+    
+    # 7. Employment stability
+    df['stable_employment'] = (df['employment_years'] >= 2).astype(int)
+    df['experienced'] = (df['employment_years'] >= 5).astype(int)
+    
+    # 8. Credit behavior
+    df['repayment_ratio'] = df['loans_repaid'] / (df['num_past_loans'] + 1)
+    df['has_missed_payments'] = (df['missed_payments'] > 0).astype(int)
+    
+    # 9. Banking health
+    df['savings_ratio'] = df['avg_bank_balance'] / (df['monthly_income'] + 1)
+    df['savings_ratio'] = df['savings_ratio'].clip(0, 10)
+    
+    # 10. Age groups
+    df['age_group'] = pd.cut(
+        df['age'],
+        bins=[0, 25, 35, 45, 55, 100],
+        labels=[0, 1, 2, 3, 4]
+    ).cat.codes.replace(-1, 2)
+    
+    # 11. High credit utilization
+    df['high_utilization'] = (df['credit_utilization'] > 70).astype(int)
+    
+    print(f"Engineered features added. Total features: {df.shape[1]}")
+    
+    return df
+
+
+def evaluate_model(model, X_test, y_test, model_name):
+    """Evaluate model and return metrics."""
+    
+    y_pred = model.predict(X_test)
+    y_prob = model.predict_proba(X_test)[:, 1]
+    
+    metrics = {
+        "model_name": model_name,
+        "accuracy": accuracy_score(y_test, y_pred),
+        "precision": precision_score(y_test, y_pred),
+        "recall": recall_score(y_test, y_pred),
+        "f1": f1_score(y_test, y_pred),
+        "roc_auc": roc_auc_score(y_test, y_prob),
+    }
+    
+    print(f"\n{'='*50}")
+    print(f"Model: {model_name}")
+    print(f"{'='*50}")
+    print(f"Accuracy:  {metrics['accuracy']:.4f}")
+    print(f"Precision: {metrics['precision']:.4f}")
+    print(f"Recall:    {metrics['recall']:.4f}")
+    print(f"F1 Score:  {metrics['f1']:.4f}")
+    print(f"ROC-AUC:   {metrics['roc_auc']:.4f}")
+    print(f"\nClassification Report:")
+    print(classification_report(y_test, y_pred, target_names=["Rejected", "Approved"]))
+    
+    return metrics
+
+
 def train_models(X_train, X_test, y_train, y_test, feature_cols):
     """Train and evaluate multiple models."""
     
     results = []
     models = {}
     
-    # Calculate class weight for imbalanced data
-    pos_weight = (y_train == 0).sum() / (y_train == 1).sum()
-    print(f"\nClass imbalance ratio: {pos_weight:.2f}:1 (negative:positive)")
-    
-    # ─── 1. Logistic Regression ───────────────────────────────────────────────
-    print("\n" + "─"*60)
+    # 1. Logistic Regression
+    print("\n" + "-"*60)
     print("Training Logistic Regression...")
-    print("─"*60)
+    print("-"*60)
     
     lr_model = LogisticRegression(
         max_iter=1000,
         random_state=RANDOM_STATE,
-        class_weight="balanced",  # Handle imbalance
+        class_weight="balanced",
         solver="lbfgs"
     )
     lr_model.fit(X_train, y_train)
@@ -87,14 +193,14 @@ def train_models(X_train, X_test, y_train, y_test, feature_cols):
     results.append(lr_metrics)
     models["Logistic Regression"] = lr_model
     
-    # ─── 2. Random Forest ─────────────────────────────────────────────────────
-    print("\n" + "─"*60)
+    # 2. Random Forest
+    print("\n" + "-"*60)
     print("Training Random Forest...")
-    print("─"*60)
+    print("-"*60)
     
     rf_model = RandomForestClassifier(
         n_estimators=100,
-        max_depth=10,
+        max_depth=12,
         min_samples_split=20,
         min_samples_leaf=10,
         class_weight="balanced",
@@ -107,32 +213,47 @@ def train_models(X_train, X_test, y_train, y_test, feature_cols):
     results.append(rf_metrics)
     models["Random Forest"] = rf_model
     
-    # ─── 3. XGBoost (if available) ────────────────────────────────────────────
+    # 3. XGBoost (if available) - WITH GPU SUPPORT
     if check_xgboost_available():
         import xgboost as xgb
         
-        print("\n" + "─"*60)
-        print("Training XGBoost...")
-        print("─"*60)
+        print("\n" + "-"*60)
+        print("Training XGBoost with GPU (RTX 4050)...")
+        print("-"*60)
+        
+        # Check GPU availability
+        gpu_available = False
+        try:
+            # Test if CUDA is available for XGBoost
+            test_model = xgb.XGBClassifier(device='cuda', n_estimators=1)
+            test_model.fit([[1,2],[3,4]], [0,1])
+            gpu_available = True
+            print("GPU (CUDA) detected - using GPU acceleration!")
+        except Exception as e:
+            print(f"GPU not available, using CPU: {str(e)[:50]}...")
         
         xgb_model = xgb.XGBClassifier(
-            n_estimators=100,
-            max_depth=6,
+            device='cuda' if gpu_available else 'cpu',
+            tree_method='hist',
+            n_estimators=200,
+            max_depth=8,
             learning_rate=0.1,
             subsample=0.8,
             colsample_bytree=0.8,
-            scale_pos_weight=pos_weight,  # Handle imbalance
+            gamma=0.1,
+            min_child_weight=3,
+            reg_alpha=0.1,
+            reg_lambda=1.0,
             random_state=RANDOM_STATE,
-            eval_metric="auc",
-            use_label_encoder=False
+            eval_metric="auc"
         )
-        xgb_model.fit(X_train, y_train)
+        xgb_model.fit(X_train, y_train, verbose=True)
         
         xgb_metrics = evaluate_model(xgb_model, X_test, y_test, "XGBoost")
         results.append(xgb_metrics)
         models["XGBoost"] = xgb_model
     else:
-        print("\n⚠ XGBoost not installed. Run: pip install xgboost")
+        print("\nNote: XGBoost not installed. Run: pip install xgboost")
     
     return results, models
 
@@ -141,59 +262,73 @@ def main():
     """Main training pipeline."""
     
     print("="*60)
-    print("CREDIT RISK ASSESSMENT - MODEL TRAINING")
+    print("INDIAN CREDIT RISK ASSESSMENT - MODEL TRAINING")
     print("="*60)
+    print("Dataset: Indian Credit Risk Data")
     
     # ─── Check if dataset exists ──────────────────────────────────────────────
     if not os.path.exists(DATA_PATH):
-        print(f"\n❌ ERROR: Dataset not found at {DATA_PATH}")
-        print("\nPlease download the 'Give Me Some Credit' dataset:")
-        print("1. Go to: https://www.kaggle.com/competitions/GiveMeSomeCredit/data")
-        print("2. Download 'cs-training.csv'")
-        print("3. Place it in the 'dataset/' folder")
-        print("\nAlternatively, run with --demo flag for demo mode with synthetic data:")
+        print(f"\nERROR: Dataset not found at {DATA_PATH}")
+        print("\nPlease run 'python combine_datasets.py' first to generate the dataset.")
+        print("\nOr run with --demo flag for demo mode:")
         print("  python train_model.py --demo")
         
-        # Check for --demo flag
         if "--demo" in sys.argv:
-            print("\n" + "─"*60)
-            print("RUNNING IN DEMO MODE (synthetic data)")
-            print("─"*60)
             run_demo_mode()
             return
         
         sys.exit(1)
     
     # ─── Load and preprocess data ─────────────────────────────────────────────
-    print("\n📊 Loading dataset...")
-    df = load_and_preprocess_data(DATA_PATH)
+    print("\nLoading dataset...")
+    df, label_encoders = load_and_prepare_data(DATA_PATH)
     
-    print("\n🔧 Handling missing values...")
-    df = handle_missing_values(df)
-    
-    print("\n⚙️ Engineering features...")
+    print("\nEngineering features...")
     df = engineer_features(df)
     
-    # ─── Prepare features and split ───────────────────────────────────────────
-    print("\n📦 Preparing train/test split...")
-    X_train, X_test, y_train, y_test, feature_cols, scaler = prepare_features_and_target(df)
+    # ─── Prepare features and target ──────────────────────────────────────────
+    print("\nPreparing train/test split...")
+    
+    target_col = 'loan_approved'
+    feature_cols = [col for col in df.columns if col != target_col]
+    
+    X = df[feature_cols]
+    y = df[target_col]
+    
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y
+    )
+    
+    # Scale features
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    print(f"Training set: {len(X_train):,} samples")
+    print(f"Test set: {len(X_test):,} samples")
+    print(f"Features: {len(feature_cols)}")
     
     # ─── Train models ─────────────────────────────────────────────────────────
-    results, models = train_models(X_train, X_test, y_train, y_test, feature_cols)
+    results, models = train_models(X_train_scaled, X_test_scaled, y_train, y_test, feature_cols)
     
-    # ─── Compare models ───────────────────────────────────────────────────────
-    comparison_df = compare_models(results)
+    # ─── Compare and select best model ────────────────────────────────────────
+    print("\n" + "="*60)
+    print("MODEL COMPARISON")
+    print("="*60)
     
-    # ─── Select best model ────────────────────────────────────────────────────
-    best_model_name = comparison_df["roc_auc"].idxmax()
+    results_df = pd.DataFrame(results).set_index('model_name')
+    print(results_df.round(4).to_string())
+    
+    best_model_name = results_df['roc_auc'].idxmax()
     best_model = models[best_model_name]
+    best_idx = [r['model_name'] for r in results].index(best_model_name)
     
-    print(f"\n✅ Best model selected: {best_model_name}")
+    print(f"\nBest model: {best_model_name} (ROC-AUC: {results_df.loc[best_model_name, 'roc_auc']:.4f})")
     
-    # ─── Cross-validation for best model ──────────────────────────────────────
-    print(f"\n📈 Cross-validating {best_model_name}...")
+    # ─── Cross-validation ─────────────────────────────────────────────────────
+    print(f"\nCross-validating {best_model_name}...")
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
-    cv_scores = cross_val_score(best_model, X_train, y_train, cv=cv, scoring="roc_auc")
+    cv_scores = cross_val_score(best_model, X_train_scaled, y_train, cv=cv, scoring="roc_auc")
     print(f"CV ROC-AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
     
     # ─── Save model artifact ──────────────────────────────────────────────────
@@ -201,38 +336,22 @@ def main():
         "model": best_model,
         "scaler": scaler,
         "feature_cols": feature_cols,
+        "label_encoders": label_encoders,
         "model_name": best_model_name,
-        "metrics": results[comparison_df.index.get_loc(best_model_name)],
+        "metrics": results[best_idx],
         "cv_auc_mean": cv_scores.mean(),
         "cv_auc_std": cv_scores.std(),
     }
     
     joblib.dump(model_artifact, MODEL_PATH)
-    print(f"\n💾 Model saved to {MODEL_PATH}")
-    
-    # ─── Generate visualizations ──────────────────────────────────────────────
-    print("\n📊 Generating visualizations...")
-    
-    # Prepare data for ROC curve
-    roc_data = []
-    for name, model in models.items():
-        y_prob = model.predict_proba(X_test)[:, 1]
-        roc_data.append((name, y_test, y_prob))
-    
-    plot_roc_curve(roc_data, save_path="roc_curves.png")
-    
-    # Feature importance for best model
-    plot_feature_importance(best_model, feature_cols, save_path="feature_importance.png")
-    
-    # Confusion matrix for best model
-    y_pred = best_model.predict(X_test)
-    plot_confusion_matrix(y_test, y_pred, best_model_name, save_path="confusion_matrix.png")
+    print(f"\nModel saved to {MODEL_PATH}")
     
     print("\n" + "="*60)
     print("TRAINING COMPLETE!")
     print("="*60)
     print(f"\nModel: {best_model_name}")
-    print(f"ROC-AUC: {comparison_df.loc[best_model_name, 'roc_auc']:.4f}")
+    print(f"ROC-AUC: {results_df.loc[best_model_name, 'roc_auc']:.4f}")
+    print(f"Accuracy: {results_df.loc[best_model_name, 'accuracy']:.4f}")
     print(f"Features: {len(feature_cols)}")
     print(f"\nRun 'python app.py' to start the web server.")
 
@@ -240,53 +359,65 @@ def main():
 def run_demo_mode():
     """Run with synthetic data for demo purposes."""
     
-    np.random.seed(RANDOM_STATE)
-    n_samples = 5000
+    print("\n" + "-"*60)
+    print("RUNNING IN DEMO MODE (synthetic data)")
+    print("-"*60)
     
-    # Generate synthetic data matching Give Me Some Credit schema
-    df = pd.DataFrame({
-        "SeriousDlqin2yrs": np.random.choice([0, 0, 0, 0, 0, 0, 0, 0, 0, 1], n_samples),
-        "RevolvingUtilizationOfUnsecuredLines": np.random.uniform(0, 1.5, n_samples),
-        "age": np.random.randint(21, 75, n_samples),
-        "NumberOfTime30-59DaysPastDueNotWorse": np.random.choice([0, 0, 0, 0, 1, 2], n_samples),
-        "DebtRatio": np.random.uniform(0, 2, n_samples),
-        "MonthlyIncome": np.random.randint(1000, 20000, n_samples),
-        "NumberOfOpenCreditLinesAndLoans": np.random.randint(0, 20, n_samples),
-        "NumberOfTimes90DaysLate": np.random.choice([0, 0, 0, 0, 0, 1], n_samples),
-        "NumberRealEstateLoansOrLines": np.random.choice([0, 0, 1, 1, 2], n_samples),
-        "NumberOfTime60-89DaysPastDueNotWorse": np.random.choice([0, 0, 0, 0, 1], n_samples),
-        "NumberOfDependents": np.random.choice([0, 0, 0, 1, 1, 2, 3], n_samples),
-    })
+    # Import the generator from combine_datasets
+    from combine_datasets import generate_indian_credit_dataset
     
-    print(f"Generated synthetic dataset: {len(df)} records")
+    df = generate_indian_credit_dataset(10000)
     
-    # Apply same preprocessing pipeline
+    # Encode categorical columns
+    categorical_cols = ['education', 'employment_type', 'state', 'loan_purpose']
+    label_encoders = {}
+    
+    for col in categorical_cols:
+        if col in df.columns:
+            le = LabelEncoder()
+            df[f'{col}_encoded'] = le.fit_transform(df[col])
+            label_encoders[col] = le
+            df = df.drop(columns=[col])
+    
+    # Engineer features
     df = engineer_features(df)
     
-    X_train, X_test, y_train, y_test, feature_cols, scaler = prepare_features_and_target(df)
+    # Prepare data
+    target_col = 'loan_approved'
+    feature_cols = [col for col in df.columns if col != target_col]
     
-    # Train simple model for demo
-    from sklearn.linear_model import LogisticRegression
+    X = df[feature_cols]
+    y = df[target_col]
     
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y
+    )
+    
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    # Train model
     model = LogisticRegression(max_iter=1000, class_weight="balanced", random_state=RANDOM_STATE)
-    model.fit(X_train, y_train)
+    model.fit(X_train_scaled, y_train)
     
-    metrics = evaluate_model(model, X_test, y_test, "Logistic Regression (Demo)")
+    metrics = evaluate_model(model, X_test_scaled, y_test, "Logistic Regression (Demo)")
     
     # Save model
     model_artifact = {
         "model": model,
         "scaler": scaler,
         "feature_cols": feature_cols,
+        "label_encoders": label_encoders,
         "model_name": "Logistic Regression (Demo)",
         "metrics": metrics,
         "demo_mode": True,
     }
     
     joblib.dump(model_artifact, MODEL_PATH)
-    print(f"\n💾 Demo model saved to {MODEL_PATH}")
-    print("\n⚠️ Note: This is demo mode with synthetic data.")
-    print("For production, download the real dataset.")
+    print(f"\nDemo model saved to {MODEL_PATH}")
+    print("\nNote: This is demo mode with synthetic data.")
+    print("For production, run 'python combine_datasets.py' first.")
 
 
 if __name__ == "__main__":
