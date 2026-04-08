@@ -3,11 +3,7 @@ dataset/*
 !dataset/README.md
 
 # Trained models and artifacts
-*.pkl
-*.joblib
-*.h5
-*.pt
-*.pth
+
 
 # Generated plots and visualizations
 *.png
